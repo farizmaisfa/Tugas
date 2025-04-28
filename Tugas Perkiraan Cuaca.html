@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prakiraan Cuaca Multi-Lokasi</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .location-container {
+            margin-bottom: 40px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .location-title {
+            font-size: 1.4em;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .current-weather {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-radius: 5px;
+        }
+        .current-temp {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-right: 20px;
+            color: #2980b9;
+        }
+        .current-details {
+            flex-grow: 1;
+        }
+        .weather-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .weather-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            width: calc(33% - 20px);
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .date {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .temp {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .temp-max, .temp-min {
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .temp-max {
+            background-color: #ffdddd;
+            color: #c0392b;
+        }
+        .temp-min {
+            background-color: #ddddff;
+            color: #2980b9;
+        }
+        .precipitation {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #e0f7fa;
+            border-radius: 5px;
+            color: #00838f;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #c0392b;
+            background-color: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .weather-card {
+                width: 100%;
+            }
+            .current-weather {
+                flex-direction: column;
+                text-align: center;
+            }
+            .current-temp {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Prakiraan Cuaca Multi-Lokasi</h1>
+    
+    <!-- Bagian untuk Kecamatan Klojen -->
+    <div class="location-container" id="klojen-weather">
+        <div class="location-title">Kecamatan Klojen, Malang</div>
+        <div id="klojen-current" class="current-weather">
+            <div class="current-temp">-</div>
+            <div class="current-details">
+                <p>Memuat data cuaca saat ini...</p>
+            </div>
+        </div>
+        <div id="klojen-forecast">
+            <div class="loading">Memuat prakiraan cuaca...</div>
+        </div>
+    </div>
+    
+    <!-- Bagian untuk Berlin (data contoh) -->
+    <div class="location-container" id="berlin-weather">
+        <div class="location-title">Berlin, Jerman (Data Contoh)</div>
+        <div id="berlin-current" class="current-weather">
+            <div class="current-temp">-</div>
+            <div class="current-details">
+                <p>Memuat data cuaca saat ini...</p>
+            </div>
+        </div>
+        <div id="berlin-forecast">
+            <div class="loading">Memuat prakiraan cuaca...</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Data untuk Kecamatan Klojen
+            fetchKlojenWeather();
+            
+            // Data contoh untuk Berlin
+            displayBerlinWeather();
+        });
+        
+        function fetchKlojenWeather() {
+            // Koordinat Kecamatan Klojen, Malang
+            const latitude = -7.973;
+            const longitude = 112.6087;
+            
+            // URL API Open-Meteo untuk Klojen
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,precipitation,rain&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FBangkok&forecast_days=3`;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Gagal mengambil data cuaca Klojen');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayKlojenWeather(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('klojen-forecast').innerHTML = `
+                        <div class="error">
+                            <p>Gagal memuat data cuaca Klojen. Silakan coba lagi nanti.</p>
+                            <p>${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function displayKlojenWeather(data) {
+            // Tampilkan data cuaca saat ini
+            if (data.current) {
+                const currentContainer = document.getElementById('klojen-current');
+                currentContainer.innerHTML = `
+                    <div class="current-temp">${data.current.temperature_2m}°C</div>
+                    <div class="current-details">
+                        <p><strong>Kondisi saat ini:</strong></p>
+                        <p>Suhu: ${data.current.temperature_2m}°C</p>
+                        <p>Presipitasi: ${data.current.precipitation} mm</p>
+                        <p>Hujan: ${data.current.rain} mm</p>
+                        <p>Terakhir diperbarui: ${new Date(data.current.time).toLocaleString('id-ID')}</p>
+                    </div>
+                `;
+            }
+            
+            // Tampilkan prakiraan cuaca
+            const forecastContainer = document.getElementById('klojen-forecast');
+            
+            if (!data.daily) {
+                forecastContainer.innerHTML = `
+                    <div class="error">
+                        <p>Data prakiraan cuaca tidak tersedia</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const { time, temperature_2m_max, temperature_2m_min, precipitation_sum } = data.daily;
+            
+            let forecastHTML = '<h3>Prakiraan 3 Hari:</h3><div class="weather-container">';
+            
+            for (let i = 0; i < time.length; i++) {
+                const date = new Date(time[i]);
+                const dayName = date.toLocaleDateString('id-ID', { weekday: 'long' });
+                const formattedDate = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
+                
+                forecastHTML += `
+                    <div class="weather-card">
+                        <div class="date">${dayName}, ${formattedDate}</div>
+                        <div class="temp">
+                            <div class="temp-max">Max: ${temperature_2m_max[i]}°C</div>
+                            <div class="temp-min">Min: ${temperature_2m_min[i]}°C</div>
+                        </div>
+                        <div class="precipitation">Presipitasi: ${precipitation_sum[i]} mm</div>
+                    </div>
+                `;
+            }
+            
+            forecastHTML += '</div>';
+            forecastContainer.innerHTML = forecastHTML;
+        }
+        
+
+    </script>
+</body>
+</html>
