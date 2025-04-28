@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Kecamatan Malang dengan Data Cuaca</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f6f4f8;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        .weather-info {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .weather-info p {
+            margin: 3px 0;
+        }
+        .weather-icon {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>5 Kecamatan di Kota Malang dengan Data Cuaca</h1>
+    </header>
+    <div id="map"></div>
+    <script>
+        // Inisialisasi peta dengan fokus di Kota Malang
+        const map = L.map('map').setView([-7.975, 112.633], 12);
+
+        // Tambahkan layer OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+            minZoom: 10
+        }).addTo(map);
+
+        // Kumpulan icon cuaca
+        const weatherIcons = {
+            sunny: 'https://cdn-icons-png.flaticon.com/512/869/869869.png',
+            rainy: 'https://cdn-icons-png.flaticon.com/512/4150/4150904.png',
+            cloudy: 'https://cdn-icons-png.flaticon.com/512/414/414927.png',
+            thunder: 'https://cdn-icons-png.flaticon.com/512/1146/1146857.png',
+            default: 'https://cdn-icons-png.flaticon.com/512/447/447031.png'
+        };
+
+        // Buat custom icon berdasarkan kondisi cuaca
+        function createCustomIcon(weatherType) {
+            const iconUrl = weatherIcons[weatherType] || weatherIcons.default;
+            return L.icon({
+                iconUrl: iconUrl,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+        }
+
+        // Data kecamatan di Kota Malang (nama dan koordinat)
+        const districts = [
+            { name: 'Klojen', coords: [-7.982, 112.630], icon: 'sunny' },
+            { name: 'Blimbing', coords: [-7.939, 112.647], icon: 'cloudy' },
+            { name: 'Lowokwaru', coords: [-7.952, 112.611], icon: 'rainy' },
+            { name: 'Sukun', coords: [-8.003, 112.614], icon: 'thunder' },
+            { name: 'Kedungkandang', coords: [-7.978, 112.664], icon: 'default' }
+        ];
+
+        // Fungsi untuk mengambil data cuaca dari OpenMeteo API
+        async function getWeatherData(lat, lon) {
+            try {
+                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,weather_code&timezone=Asia%2FBangkok`);
+                const data = await response.json();
+                return data.current;
+            } catch (error) {
+                console.error('Error fetching weather data:', error);
+                return null;
+            }
+        }
+
+        // Fungsi untuk menentukan icon berdasarkan weather code
+        function getWeatherIcon(weatherCode) {
+            // https://open-meteo.com/en/docs#api-documentation
+            if (weatherCode >= 80) return 'rainy'; // Hujan
+            if (weatherCode >= 61) return 'rainy'; // Hujan
+            if (weatherCode >= 51) return 'rainy'; // Gerimis
+            if (weatherCode >= 3) return 'cloudy'; // Berawan
+            if (weatherCode >= 1) return 'cloudy'; // Sedikit berawan
+            return 'sunny'; // Cerah
+        }
+
+        // Tambahkan marker untuk setiap kecamatan
+        districts.forEach(district => {
+            const marker = L.marker(district.coords, { 
+                icon: createCustomIcon(district.icon) 
+            }).addTo(map);
+            
+            // Set popup awal
+            marker.bindPopup(`<b>${district.name}</b><br>Klik untuk melihat data cuaca`);
+            
+            // Event click untuk mengambil data cuaca
+            marker.on('click', async function() {
+                // Tampilkan loading message
+                marker.setPopupContent(`
+                    <b>${district.name}</b><br>
+                    <img src="${weatherIcons.default}" class="weather-icon" loading="lazy">
+                    Mengambil data cuaca...
+                `).openPopup();
+                
+                // Ambil data cuaca
+                const weatherData = await getWeatherData(district.coords[0], district.coords[1]);
+                
+                // Format data cuaca untuk ditampilkan
+                let weatherInfo = '';
+                if (weatherData) {
+                    const weatherIcon = getWeatherIcon(weatherData.weather_code);
+                    weatherInfo = `
+                        <div class="weather-info">
+                            <p>
+                                <img src="${weatherIcons[weatherIcon]}" class="weather-icon" loading="lazy">
+                                <strong>Cuaca Saat Ini:</strong>
+                            </p>
+                            <p>Suhu: ${weatherData.temperature_2m}°C</p>
+                            <p>Presipitasi: ${weatherData.precipitation} mm</p>
+                            <p>Diperbarui: ${new Date(weatherData.time).toLocaleTimeString('id-ID')}</p>
+                        </div>
+                    `;
+                    
+                    // Update icon marker berdasarkan cuaca
+                    marker.setIcon(createCustomIcon(weatherIcon));
+                } else {
+                    weatherInfo = `
+                        <div class="weather-info">
+                            <img src="${weatherIcons.default}" class="weather-icon" loading="lazy">
+                            Gagal mengambil data cuaca
+                        </div>
+                    `;
+                }
+                
+                // Update popup dengan data cuaca
+                marker.setPopupContent(`
+                    <b>${district.name}</b>
+                    <br>Lat: ${district.coords[0]}, Lon: ${district.coords[1]}
+                    ${weatherInfo}
+                `).openPopup();
+            });
+        });
+    </script>
+</body>
+</html>
